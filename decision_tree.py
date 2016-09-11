@@ -20,6 +20,7 @@ my_data = [
 ]
 
 
+# Divides a set on a specific column. Can handle numeric or nominal values
 def divideset(rows, column, value):
         '''
                 Divides a set on specific column. Can handle numeric or nominal values
@@ -35,6 +36,7 @@ def divideset(rows, column, value):
         return (set1, set2)
 
 
+# Create counts of possible results (the last column of each row is the result)
 def uniquecounts(rows):
         '''
                 Create a counts of possible results (the last column of each row is the result)
@@ -48,8 +50,10 @@ def uniquecounts(rows):
                 results[r] += 1
         return results
 
+# Entropy is the sum of p(x)log(p(x)) across all
+# the different possible results
 
-# Entropy is the sum of p(x)log(p(x)) across all the different possible results
+
 def entropy(rows):
         log2 = lambda x: log(x) / log(2)
         results = uniquecounts(rows)
@@ -62,12 +66,12 @@ def entropy(rows):
 
 
 class DecisionNode:
-        def __init__(self, col=-1, value=None, results=None, tb=None, fb=None):
-           '''
+        '''
                 @param col: column index of the criteria to be tested
                 @param value: value that the column must match to get a true result
                 @param result: store a dictionary of results fot this branch
-            '''
+        '''
+        def __init__(self, col=-1, value=None, results=None, tb=None, fb=None):
             self.col = col
             self.value = value
             self.results = results
@@ -75,41 +79,72 @@ class DecisionNode:
             self.fb = fb
 
 
-def buildtree(rows, scoref=entropy):
-        '''
-                @param rows: is the set, either whole dataset or part of it in
-                @param scoref: is the method to measure heterogeneity
-        '''
-        if len(rows) == 0:
-                return DecisionNode()
-        current_score = scoref(rows)
+def buildtree(rows, scoref=entropy):  # rows is the set, either whole dataset or part of it in the recursive call,
+    if len(rows) == 0:
+            return DecisionNode()
+    current_score = scoref(rows)
 
-        # Set up some variables to track the best criteria
-        best_gain = 0.0
-        best_criteria = None
-        best_sets = None
+    # Set up some variables to track the best criteria
+    best_gain = 0.0
+    best_criteria = None
+    best_sets = None
 
-        column_count = len(rows[0]) - 1
+    column_count = len(rows[0]) - 1
 
-        for col in range(0, column_count):
-                # Generate the list of all possible different values in the considered column
-                global column_values
-                column_values = {}
-                for row in rows:
-                        column_values[row[col]] = 1
-                for value in column_values.keys():
-                        (set1, set2) = divideset(rows, col, value)
-        # Information gain
-        p = float(len(set1) / len(rows))  # p is the size of a child set relative to its parent
-        gain = current_score - p * scoref(set1) - (1 - p)*scoref(set2)  # cf. formula information gain
-        if gain > best_gain and len(set1) > 0 and len(set2) > 0:
-                best_gain = gain
-                best_criteria = (col, value)
-                best_sets = (set1, set2)
-        # Create the sub branches
-        if best_gain > 0:
-                trueBranch = buildtree(best_sets[0])
-                falseBranch = buildtree(best_sets[1])
-                return DecisionNode(col=best_criteria[0], value=best_criteria[1], tb=trueBranch, fb=falseBranch)
-        else:
-                return DecisionNode(results=uniquecounts(rows))
+    for col in range(0, column_count):
+        #  Generate the list of all possible different values in the considered column
+        global column_values
+        column_values = {}
+    for row in rows:
+        column_values[row[col]] = 1
+    for value in column_values.keys():
+        (set1, set2) = divideset(rows, col, value)
+
+    #  Information gain
+    p = float(len(set1)) / len(rows)  # p is the size of a child set relative to its parent
+    gain = current_score - p * scoref(set1) - (1 - p) * scoref(set2)  # cf. formula information gain
+    if gain > best_gain and len(set1) > 0 and len(set2) > 0:  # set must not be empty
+        best_gain = gain
+        best_criteria = (col, value)
+        best_sets = (set1, set2)
+
+    # Create the sub branches
+    if best_gain > 0:
+        trueBranch = buildtree(best_sets[0])
+        falseBranch = buildtree(best_sets[1])
+        return DecisionNode(col=best_criteria[0], value=best_criteria[1], tb=trueBranch, fb=falseBranch)
+    else:
+        return DecisionNode(results=uniquecounts(rows))
+
+tree = buildtree(my_data)
+
+# print(tree.col)
+# print(tree.value)
+# print(tree.results)
+# print("")
+# print(tree.tb.col)
+# print(tree.tb.value)
+# print(tree.tb.results)
+# print("")
+# print(tree.tb.tb.col)
+# print(tree.tb.tb.value)
+# print(tree.tb.tb.results)
+# print("")
+# print(tree.tb.fb.col)
+# print(tree.tb.fb.value)
+# print(tree.tb.fb.results)
+
+
+def printtree(tree, indent= ' '):
+    # is this leaf node?
+    if tree.results is not None:
+        print (str(tree.results))
+    else:
+        print (str(tree.col) + ' : ' + str(tree.value) + '? ')
+        # print the branches
+        print (indent + 'T ->',)
+        printtree(tree.tb, indent + '   ')
+        print (indent + 'F ->',)
+        printtree(tree.fb, indent + '   ')
+
+printtree(tree)
